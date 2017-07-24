@@ -17,9 +17,16 @@
 		START_TIME *= FPS;
 		var PLAYER_WIDTH = 128;
 		var BALL_WIDTH = 128;
+
+		var SCREEN_WIDTH = 576;
+		var SCREEN_HEIGHT = 1024;
+
 		//移動ベクトル
     var vec_x = 1;
     var vec_y = 1;
+
+		var p_vec_x = 0;
+		var p_vec_y = 0;
 		//プレイヤー1のスコア
 		var score1_count = 0;
 		var score2_count = 0;
@@ -28,7 +35,11 @@
 
 		var start_timer = 0;
 
-  	var game = new Core(576, 1024);
+		var touchX = 0;
+		var touchY = 0;
+		var isTouch = false;
+
+  	var game = new Core(SCREEN_WIDTH, SCREEN_HEIGHT);
 		//画像リソース
 		game.preload('Image/player1.png','Image/player2.png',
     'Image/ball.png','Image/BackGround.png');
@@ -51,18 +62,18 @@
   		//bgm.loop = true;
 
   		//背景表示
-  		var bg = new Sprite(576,1024);
+  		var bg = new Sprite(SCREEN_WIDTH,SCREEN_HEIGHT);
   		bg.image = game.assets['Image/BackGround.png'];
   		scene.addChild(bg);
 
   		//プレイヤー準備
-  		var player1 = new Player(576/2,100,0);
+  		var player1 = new Player(SCREEN_WIDTH/2,800,0);
   		scene.addChild(player1);
-      var player2 = new Player(576/2,800,1);
+      var player2 = new Player(SCREEN_WIDTH/2,100,1);
   		scene.addChild(player2);
 
 			//ボール準備
-      var ball = new Ball(576/2,300);
+      var ball = new Ball(SCREEN_WIDTH/2,300);
       scene.addChild(ball);
 
 			//スコア準備
@@ -78,14 +89,52 @@
 			score2.moveTo( 500, 0 );
 			scene.addChild(score2);
 
+			var player1_text = new Label("" + p_vec_x);
+			player1_text.font = "42px Palatino";
+			player1_text.color = '#ffffff';
+			player1_text.moveTo( 0, 0 );
+			//scene.addChild(player1_text);
+
+			// タッチイベントを登録
+			scene.addEventListener("touchstart", function(e) { isTouch = true; }); // タッチ開始
+			scene.addEventListener("touchend", function(e) { isTouch = false; });  // タッチ終了
+			scene.addEventListener("touchmove", function(e) {
+			// タッチ位置をセット
+				 touchX = e.localX;
+				 touchY = e.localY;
+			});
+
     	//毎フレーム毎の処理
     	scene.addEventListener('enterframe', function(e) {
 
-  				if (game.input.up === true) player1.walk("w");
-  				if (game.input.left  === true) player1.walk("a");
-  				if (game.input.down  === true) player1.walk("s");
-  				if (game.input.right === true) player1.walk("d");
+				var before_x = player1.x;
+				var before_y = player1.y;
 
+				if(isTouch == true){
+					player1.x = touchX - PLAYER_WIDTH / 2;
+					player1.y = touchY - PLAYER_WIDTH / 2;
+				}
+				if(player1.y < SCREEN_HEIGHT / 2){
+					player1.y = SCREEN_HEIGHT / 2;
+				}
+
+				var after_x = player1.x;
+				var after_y = player1.x;
+
+				p_vec_x = after_x - before_x;
+				p_vec_y = after_y - before_y;
+
+
+				// ベクトルの長さ(ダミースプライトからタッチした位置までの距離)の２乗を求める
+				var lengthSquared = (p_vec_x * p_vec_x + p_vec_y * p_vec_y);
+				// 純粋な長さを求める
+				var len = Math.sqrt(lengthSquared);
+				// 正規化(ベクトルの長さを 1 にする)
+				p_vec_x /= len;
+				p_vec_y /= len;
+				p_vec_x *= 10;
+
+				//デバッグ用
           if (game.input.w === true) player2.walk("w");
   				if (game.input.a  === true) player2.walk("a");
   				if (game.input.s  === true) player2.walk("s");
@@ -95,30 +144,33 @@
           ball.collide_wall(vec_x, vec_y);
 
 					if(start_timer >= START_TIME){
-          	ball.move(vec_x, vec_y);
+						//スコアの更新
+						score1.text = "" + score1_count;
+						score2.text = "" + score2_count;
+
+						//player1_text.text = "" + p_vec_x;
+
+	          if(ball.within(player1, BALL_WIDTH)){
+	            vec_x = p_vec_x;
+	            vec_y = p_vec_y;
+	          }
+	          if(ball.within(player2, BALL_WIDTH)){
+	            vec_x = -vec_x;
+	            vec_y = -vec_y;
+	          }
+
+						ball.move(vec_x, vec_y);
+
+						if(ball_dead == true){
+							ball.remove(SCREEN_WIDTH/2,300);
+							ball_dead = false;
+							start_timer = 0;
+						}
 					}
 					else{
 						start_timer++;
 					}
 
-					//スコアの更新
-					score1.text = "" + score1_count;
-					score2.text = "" + score2_count;
-
-          if(ball.within(player1, BALL_WIDTH)){
-            vec_x = -vec_x;
-            vec_y = -vec_y;
-          }
-          if(ball.within(player2, BALL_WIDTH)){
-            vec_x = -vec_x;
-            vec_y = -vec_y;
-          }
-
-					if(ball_dead == true){
-						ball.remove(576/2,300);
-						ball_dead = false;
-						start_timer = 0;
-					}
 
 
     		});
@@ -149,8 +201,6 @@
 					/** 移動処理メソッド */
 					, walk: function(key){
 						var step = 10;
-
-
 
 						//移動
 						switch(key){
@@ -184,14 +234,19 @@
         //壁との当たり判定
         , collide_wall: function(x, y){
           //反射
-          if(this.x <= 0 || 576 - BALL_WIDTH <= this.x ){
+          if(this.x < 0){
             vec_x = -x;
+						this.x = 0;
           }
+					if(SCREEN_WIDTH - BALL_WIDTH <= this.x){
+						vec_x = -x;
+						this.x = SCREEN_WIDTH - BALL_WIDTH;
+					}
           if(this.y <= 0 - BALL_WIDTH){
             score1_count++;
 						ball_dead = true;
           }
-					if(1024 + BALL_WIDTH <= this.y ){
+					if(SCREEN_HEIGHT + BALL_WIDTH <= this.y ){
 						score2_count++;
 						ball_dead = true;
 					}
@@ -201,6 +256,8 @@
 				,remove: function(x, y){
 					this.x = x;
 					this.y = y;
+					vec_x = 1;
+					vec_y = 1;
 				}
 
       });
