@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta charset="utf-8">
+	<title>WareHouse MainGame</title>
+</head>
+<body>
+
+  <script src="enchantjs/enchant.min.js"></script>
+  <script src="js/jquery.min.js"></script>
+  <script>
+  $(document).ready(function(){
+  	enchant();							// initialize
+
+		var wall_hit = false;//壁に当たっているか
+    var vec_x = 1;
+    var vec_y = 1;
+  	var game = new Core(576, 1024);
+		//画像リソース
+		game.preload('Image/player1.png','Image/player2.png',
+    'Image/ball.png','Image/BackGround.png');
+		//音楽リソース
+		//game.preload('Sound/main_game.mp3');
+  	game.fps = 60;
+
+    //キー設定
+    game.keybind('W'.charCodeAt(0), 'w'); //w -> 32
+    game.keybind('A'.charCodeAt(0), 'a'); //a -> 10
+    game.keybind('S'.charCodeAt(0), 's'); //s -> 32
+    game.keybind('D'.charCodeAt(0), 'd'); //d -> 10
+
+    game.onload = function(){
+
+    	var scene = new Scene();
+
+  		//var bgm = game.assets['Sound/main_game.mp3'];
+  		//bgm.play();
+  		//bgm.loop = true;
+
+  		//背景表示
+  		var bg = new Sprite(576,1024);
+  		bg.image = game.assets['Image/BackGround.png'];
+  		scene.addChild(bg);
+
+  		//プレイヤー準備
+  		var player1 = new Player(576/2,800,0);
+  		scene.addChild(player1);
+      var player2 = new Player(576/2,100,1);
+  		scene.addChild(player2);
+
+      var ball = new Ball(576/2,300);
+      scene.addChild(ball);
+
+    	//毎フレーム毎の処理
+    	scene.addEventListener('enterframe', function(e) {
+
+  				if (game.input.up === true) player1.walk("w");
+  				if (game.input.left  === true) player1.walk("a");
+  				if (game.input.down  === true) player1.walk("s");
+  				if (game.input.right === true) player1.walk("d");
+
+          if (game.input.w === true) player2.walk("w");
+  				if (game.input.a  === true) player2.walk("a");
+  				if (game.input.s  === true) player2.walk("s");
+  				if (game.input.d === true) player2.walk("d");
+
+          ball.collide_wall(vec_x, vec_y);
+
+          ball.move(vec_x, vec_y);
+
+          if(ball.within(player1, 128)){
+            vec_x = -vec_x;
+            vec_y = -vec_y;
+          }
+          if(ball.within(player2, 128)){
+            vec_x = -vec_x;
+            vec_y = -vec_y;
+          }
+
+    		});
+
+    		  //シーンを反映
+          game.pushScene(scene);
+      };
+
+      game.start(); // start your game!
+
+			//プレイヤークラス
+			var Player = enchant.Class.create(Sprite, {		//Spriteクラスを継承
+					/** コンストラクター */
+					initialize: function(x,y,mode) {
+						var game = enchant.Game.instance;
+						Sprite.call(this, 128, 128);					//Spriteのサイズ定義
+						this.x = x;
+						this.y = y;
+            this.mode = mode;
+            if(this.mode == 0){
+						this.image = game.assets['Image/player1.png'];		//Spriteに画像をセット
+            }
+            else{
+              this.image = game.assets['Image/player2.png'];
+            }
+					}
+					/** 移動処理メソッド */
+					, walk: function(key){
+						var step = 10;
+						//移動
+						switch(key){
+							case 'w': this.y -= step; break;
+							case 'a': this.x -= step; break;
+							case 's': this.y += step; break;
+							case 'd': this.x += step; break;
+						}
+					}
+			});
+
+      var Ball = enchant.Class.create(Sprite, {
+        /** コンストラクター */
+        initialize: function(x,y) {
+          var game = enchant.Game.instance;
+          Sprite.call(this, 128, 128);//Spriteのサイズ定義
+          this.x = x;
+          this.y = y;
+
+          this.image = game.assets['Image/ball.png'];
+
+        }
+        /** 移動処理メソッド */
+        , move: function(x, y){
+
+          var speed = 10;
+          this.x += x * speed;
+          this.y += y * speed;
+        }
+
+        //壁との当たり判定
+        , collide_wall: function(x, y){
+          //反射
+          if(this.x <= 0 || 576 - 128 <= this.x ){
+            vec_x = -x;
+          }
+          if(this.y <= 0 || 1024 - 128 <= this.y ){
+            vec_y = -y;
+          }
+
+        }
+
+      });
+
+    });
+
+  </script>
+</body>
+</html>
